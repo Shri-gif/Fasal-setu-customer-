@@ -1,0 +1,6 @@
+{
+  "name": "Fasal Setu - Farm to Home Marketplace",
+  "description": "Customer platform connecting consumers directly with local farmers for fresh produce and agricultural goods.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
