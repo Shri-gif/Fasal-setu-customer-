@@ -4,7 +4,7 @@ import path from "path";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-    base: "/Khet2ghar/",
+    base: "/Fasal-setu-customer/",
     
     plugins: [
         react(),
