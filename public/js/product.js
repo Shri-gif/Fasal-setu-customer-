@@ -112,26 +112,32 @@ document.addEventListener(
 
 function getCustomerPrice(product) {
 
-  // Customer-facing price MUST come from products.customer_price.
-  // price_per_unit is the farmer/base price and must never be shown
-  // as the customer price on the customer site.
-  const customerPrice = Number(product?.customer_price);
+  const value = Number(product?.customer_price);
 
-  if (!Number.isFinite(customerPrice) || customerPrice < 0) {
-    console.warn(
-      "Product has no valid customer_price:",
-      product?.id,
-      product?.name
-    );
-    return 0;
+  // Customer site MUST use the database customer_price.
+  // No fallback to price_per_unit is allowed.
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
   }
 
-  return Math.round((customerPrice + Number.EPSILON) * 100) / 100;
-}
+  return value;
 
+}
 
 /* =========================================================
    PREPARE PRODUCT FOR CUSTOMER
+   =========================================================
+
+   Card, cart aur checkout ko final customer price
+   consistently milna chahiye.
+
+   Original farmer price bhi preserve rahega as:
+
+   farmer_price
+
+   Cart compatibility ke liye:
+
+   price_per_unit = final customer price
    ========================================================= */
 
 function prepareCustomerProduct(product) {
@@ -141,20 +147,13 @@ function prepareCustomerProduct(product) {
 
   return {
     ...product,
-
-    // Explicit customer-facing price.
     customer_price: customerPrice,
-
-    // Keep a separate farmer price for reference.
-    farmer_price: Number(product.price_per_unit) || 0,
-
-    // Cart compatibility: existing cart code uses price_per_unit.
-    // This changes only the in-memory customer object, not Supabase.
+    // Compatibility only: cart UI may still read this field.
+    // Its value is copied FROM customer_price, never from farmer price.
     price_per_unit: customerPrice
   };
+
 }
-
-
 
 /* =========================================================
    LOAD CATEGORIES

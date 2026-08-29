@@ -20,53 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
   setupCheckoutForm();
 });
 
-function getItemCustomerPrice(item) {
-  const price = Number(item?.customer_price);
-  if (Number.isFinite(price) && price >= 0) return price;
-  return Number(item?.price_per_unit) || 0;
-}
-
-async function refreshCartWithCustomerPrices(cart) {
-  if (!Array.isArray(cart) || cart.length === 0) return [];
-
-  const ids = [...new Set(cart.map(item => item?.id).filter(Boolean))];
-  if (ids.length === 0) return cart;
-
-  const { data, error } = await supabase
-    .from("products")
-    .select("id, customer_price, price_per_unit, unit, stock, is_active")
-    .in("id", ids);
-
-  if (error) {
-    console.warn("Could not refresh customer prices:", error);
-    return cart;
-  }
-
-  const byId = new Map((data || []).map(p => [String(p.id), p]));
-
-  return cart.map(item => {
-    const product = byId.get(String(item.id));
-    const customerPrice = Number(product?.customer_price);
-
-    if (!product || !Number.isFinite(customerPrice) || customerPrice < 0) {
-      return item;
-    }
-
-    return {
-      ...item,
-      customer_price: customerPrice,
-      farmer_price: Number(product.price_per_unit) || 0,
-      // Customer-side cart price.
-      price_per_unit: customerPrice,
-      unit: product.unit || item.unit
-    };
-  });
-}
-
 async function loadCheckout() {
-  const storedCart = getCart();
-  const cart = await refreshCartWithCustomerPrices(storedCart);
-  saveCart(cart);
+  let cart = getCart();
+
   if (!cart || cart.length === 0) {
     if (checkoutItems) {
       checkoutItems.innerHTML = `
@@ -75,8 +31,7 @@ async function loadCheckout() {
           <h3>Your cart is empty</h3>
           <p style="color: #666; font-size: 13px; margin: 6px 0 16px;">Add some fresh items from local farmers first.</p>
           <a href="products.html" class="primary-btn">Browse Products</a>
-        </div>
-      `;
+        </div>`;
     }
     if (checkoutSubtotal) checkoutSubtotal.textContent = "₹0";
     if (checkoutTotal) checkoutTotal.textContent = "₹0";
@@ -84,23 +39,63 @@ async function loadCheckout() {
     return;
   }
 
-  const subtotal = cart.reduce((sum, item) => sum + (getItemCustomerPrice(item) * (Number(item.quantity) || 1)), 0);
+  // Always refresh the customer_price from Supabase. This prevents an old
+  // cached cart price (price_per_unit) from reaching checkout.
+  try {
+    const ids = cart.map(item => item.id).filter(Boolean);
+    if (ids.length) {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, customer_price, unit, name, farmer_id")
+        .in("id", ids);
+
+      if (error) throw error;
+
+      const byId = new Map((data || []).map(p => [String(p.id), p]));
+      cart = cart.map(item => {
+        const fresh = byId.get(String(item.id));
+        if (!fresh) return item;
+        const customerPrice = Number(fresh.customer_price);
+        if (!Number.isFinite(customerPrice) || customerPrice < 0) {
+          throw new Error(`Customer price is missing for ${fresh.name || item.name || "this product"}.`);
+        }
+        return { ...item, ...fresh, customer_price: customerPrice };
+      });
+      saveCart(cart);
+    }
+  } catch (err) {
+    console.error("Customer price refresh error:", err);
+    showErrorMsg(err?.message || "Could not load current customer prices.");
+    if (placeOrderBtn) placeOrderBtn.disabled = true;
+    return;
+  }
+
+  const subtotal = cart.reduce((sum, item) => {
+    const price = Number(item.customer_price);
+    return sum + (Number.isFinite(price) ? price : 0) * (Number(item.quantity) || 1);
+  }, 0);
 
   if (checkoutItems) {
-    checkoutItems.innerHTML = cart.map(item => `
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
-        <div>
-          <strong style="display: block; font-size: 14px;">${escapeHTML(item.name)}</strong>
-          <span style="font-size: 12px; color: #666;">${item.quantity} × ₹${getItemCustomerPrice(item)} / ${escapeHTML(item.unit || 'kg')}</span>
-        </div>
-        <strong style="font-size: 14px;">₹${getItemCustomerPrice(item) * (Number(item.quantity) || 1)}</strong>
-      </div>
-    `).join("");
+    checkoutItems.innerHTML = cart.map(item => {
+      const price = Number(item.customer_price);
+      const lineTotal = price * (Number(item.quantity) || 1);
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
+          <div>
+            <strong style="display: block; font-size: 14px;">${escapeHTML(item.name)}</strong>
+            <span style="font-size: 12px; color: #666;">${item.quantity} × ${formatRupees(price)} / ${escapeHTML(item.unit || 'kg')}</span>
+          </div>
+          <strong style="font-size: 14px;">${formatRupees(lineTotal)}</strong>
+        </div>`;
+    }).join("");
   }
 
   if (checkoutSubtotal) checkoutSubtotal.textContent = formatRupees(subtotal);
   if (checkoutTotal) checkoutTotal.textContent = formatRupees(subtotal);
-  if (placeOrderBtn) placeOrderBtn.disabled = false;
+  if (placeOrderBtn) {
+    placeOrderBtn.disabled = false;
+    placeOrderBtn.textContent = `Place Order (${formatRupees(subtotal)}) →`;
+  }
 }
 
 function setupCheckoutForm() {
@@ -184,8 +179,8 @@ async function placeOrder() {
         city: city,
         pincode: pincode,
         quantity: item.quantity,
-        price_per_unit: getItemCustomerPrice(item),
-        total_amount: getItemCustomerPrice(item) * (Number(item.quantity) || 1),
+        price_per_unit: Number(item.customer_price),
+        total_amount: (Number(item.customer_price) || 0) * (Number(item.quantity) || 1),
         notes: notes || null,
         status: "pending",
         created_at: new Date().toISOString()
