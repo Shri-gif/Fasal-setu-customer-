@@ -17,18 +17,6 @@ const orderFilter = document.getElementById("orderStatusFilter") || document.get
 
 let allOrders = [];
 
-function getOrderCustomerPrice(order) {
-  const customerPrice = Number(order?.customer_price);
-  if (Number.isFinite(customerPrice) && customerPrice >= 0) {
-    return customerPrice;
-  }
-
-  // Orders created by the updated checkout store the charged customer
-  // price in price_per_unit for compatibility with the existing schema.
-  return Number(order?.price_per_unit) || 0;
-}
-
-
 document.addEventListener("DOMContentLoaded", () => {
   updateCartCount();
   setupOrdersPage();
@@ -133,8 +121,7 @@ function createOrderCard(order) {
   const oid = escapeHTML(order.id);
   const status = String(order.status || "pending").toLowerCase();
   const canCancel = ["pending", "confirmed"].includes(status);
-  const customerPrice = getOrderCustomerPrice(order);
-  const total = Number(order.total_amount) || (customerPrice * (Number(order.quantity) || 1));
+  const total = Number(order.total_amount) || ((Number(order.price_per_unit) || 0) * (Number(order.quantity) || 1));
 
   return `
     <article class="order-card" style="background: white; border-radius: 16px; border: 1px solid #e5e7eb; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -153,7 +140,7 @@ function createOrderCard(order) {
           <span style="font-size: 24px;">🌱</span>
           <div>
             <h4 style="font-size: 14px; font-weight: bold; color: #1f2937; margin: 0;">${escapeHTML(order.product_name || "Farm Produce")}</h4>
-            <span style="font-size: 12px; color: #6b7280;">Qty: ${order.quantity} × ₹${customerPrice}</span>
+            <span style="font-size: 12px; color: #6b7280;">Qty: ${order.quantity} × ₹${order.price_per_unit}</span>
           </div>
         </div>
         <strong style="font-size: 16px; color: #047857;">${formatRupees(total)}</strong>
