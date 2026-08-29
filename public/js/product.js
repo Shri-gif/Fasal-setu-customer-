@@ -112,115 +112,48 @@ document.addEventListener(
 
 function getCustomerPrice(product) {
 
-  /*
-  -----------------------------------------
-  1. PREFER SAVED CUSTOMER PRICE
-  -----------------------------------------
-  */
+  // Customer-facing price MUST come from products.customer_price.
+  // price_per_unit is the farmer/base price and must never be shown
+  // as the customer price on the customer site.
+  const customerPrice = Number(product?.customer_price);
 
-  const savedCustomerPrice =
-    Number(product.customer_price);
-
-
-  if (
-    product.customer_price !== null &&
-    product.customer_price !== undefined &&
-    product.customer_price !== "" &&
-    Number.isFinite(savedCustomerPrice) &&
-    savedCustomerPrice >= 0
-  ) {
-
-    return savedCustomerPrice;
-
+  if (!Number.isFinite(customerPrice) || customerPrice < 0) {
+    console.warn(
+      "Product has no valid customer_price:",
+      product?.id,
+      product?.name
+    );
+    return 0;
   }
 
-
-  /*
-  -----------------------------------------
-  2. FALLBACK:
-  BASE PRICE + SAVED PLATFORM FEE
-  -----------------------------------------
-  */
-
-  const farmerPrice =
-    Number(product.price_per_unit) || 0;
-
-
-  const platformFee =
-    Number(product.platform_fee) || 0;
-
-
-  return farmerPrice + platformFee;
-
+  return Math.round((customerPrice + Number.EPSILON) * 100) / 100;
 }
 
 
 /* =========================================================
    PREPARE PRODUCT FOR CUSTOMER
-   =========================================================
-
-   Card, cart aur checkout ko final customer price
-   consistently milna chahiye.
-
-   Original farmer price bhi preserve rahega as:
-
-   farmer_price
-
-   Cart compatibility ke liye:
-
-   price_per_unit = final customer price
    ========================================================= */
 
 function prepareCustomerProduct(product) {
 
-  const farmerPrice =
-    Number(product.price_per_unit) || 0;
-
-
   const customerPrice =
     getCustomerPrice(product);
 
-
   return {
-
     ...product,
 
+    // Explicit customer-facing price.
+    customer_price: customerPrice,
 
-    /*
-    Farmer ka original price preserve.
-    */
+    // Keep a separate farmer price for reference.
+    farmer_price: Number(product.price_per_unit) || 0,
 
-    farmer_price:
-      farmerPrice,
-
-
-    /*
-    Customer ko actual final price.
-    */
-
-    customer_price:
-      customerPrice,
-
-
-    /*
-    Important:
-
-    Existing cart / checkout code
-    likely price_per_unit use karta hai.
-
-    Isliye customer-side product object me
-    price_per_unit ko final customer price
-    set kar rahe hain.
-
-    Database change nahi ho raha.
-    */
-
-    price_per_unit:
-      customerPrice
-
+    // Cart compatibility: existing cart code uses price_per_unit.
+    // This changes only the in-memory customer object, not Supabase.
+    price_per_unit: customerPrice
   };
-
 }
+
 
 
 /* =========================================================
