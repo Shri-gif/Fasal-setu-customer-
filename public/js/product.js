@@ -1,248 +1,1144 @@
 /* =========================================================
-   FASAL SETU / KHET2GHAR - js/product.js (Fixed & Resilient)
+   FASAL SETU / KHET2GHAR - js/product.js
+   Customer Product Listing + Platform Fee Pricing
    ========================================================= */
 
 import { supabase } from "./supabase.js";
-import { formatRupees, escapeHTML, escapeAttribute, addToCart, showToast, updateCartCount } from "./app.js";
+
+import {
+  formatRupees,
+  escapeHTML,
+  escapeAttribute,
+  addToCart,
+  showToast,
+  updateCartCount
+} from "./app.js";
+
 
 const productsContainer =
   document.getElementById("productsGrid") ||
   document.getElementById("productsContainer");
 
+
 const emptyProducts =
   document.getElementById("productsEmpty") ||
   document.getElementById("emptyProducts");
 
+
 const productSearch =
   document.getElementById("productSearch");
+
 
 const categoryFilterSelect =
   document.getElementById("categoryFilter");
 
+
 const categoryFilterButtons =
   document.querySelectorAll(".category-filter");
+
 
 const productCount =
   document.getElementById("productCount");
 
+
 let allProducts = [];
+
 let currentCategory = "all";
-const categoryMap = new Map();
 
-document.addEventListener("DOMContentLoaded", async () => {
-  if (!productsContainer) return;
-  showLoading();
-  updateCartCount();
 
-  await Promise.allSettled([loadCategories(), loadProducts()]);
-  setupSearch();
-  setupCategoryFilters();
-});
+const categoryMap =
+  new Map();
+
+
+/* =========================================================
+   PAGE LOAD
+   ========================================================= */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async () => {
+
+    if (!productsContainer) {
+
+      return;
+
+    }
+
+
+    showLoading();
+
+
+    updateCartCount();
+
+
+    await Promise.allSettled([
+      loadCategories(),
+      loadProducts()
+    ]);
+
+
+    setupSearch();
+
+
+    setupCategoryFilters();
+
+  }
+);
+
+
+/* =========================================================
+   CUSTOMER PRICE
+   =========================================================
+
+   Database structure:
+
+   price_per_unit
+   → Farmer ka original/base price
+
+   platform_fee
+   → Is product par platform fee amount
+
+   customer_price
+   → Final price jo customer ko dikhega
+
+   Example:
+
+   Farmer price: ₹60
+   Platform fee: ₹6
+   Customer price: ₹66
+
+   Customer ko sirf ₹66 dikhega.
+   ========================================================= */
+
+function getCustomerPrice(product) {
+
+  /*
+  -----------------------------------------
+  1. PREFER SAVED CUSTOMER PRICE
+  -----------------------------------------
+  */
+
+  const savedCustomerPrice =
+    Number(product.customer_price);
+
+
+  if (
+    product.customer_price !== null &&
+    product.customer_price !== undefined &&
+    product.customer_price !== "" &&
+    Number.isFinite(savedCustomerPrice) &&
+    savedCustomerPrice >= 0
+  ) {
+
+    return savedCustomerPrice;
+
+  }
+
+
+  /*
+  -----------------------------------------
+  2. FALLBACK:
+  BASE PRICE + SAVED PLATFORM FEE
+  -----------------------------------------
+  */
+
+  const farmerPrice =
+    Number(product.price_per_unit) || 0;
+
+
+  const platformFee =
+    Number(product.platform_fee) || 0;
+
+
+  return farmerPrice + platformFee;
+
+}
+
+
+/* =========================================================
+   PREPARE PRODUCT FOR CUSTOMER
+   =========================================================
+
+   Card, cart aur checkout ko final customer price
+   consistently milna chahiye.
+
+   Original farmer price bhi preserve rahega as:
+
+   farmer_price
+
+   Cart compatibility ke liye:
+
+   price_per_unit = final customer price
+   ========================================================= */
+
+function prepareCustomerProduct(product) {
+
+  const farmerPrice =
+    Number(product.price_per_unit) || 0;
+
+
+  const customerPrice =
+    getCustomerPrice(product);
+
+
+  return {
+
+    ...product,
+
+
+    /*
+    Farmer ka original price preserve.
+    */
+
+    farmer_price:
+      farmerPrice,
+
+
+    /*
+    Customer ko actual final price.
+    */
+
+    customer_price:
+      customerPrice,
+
+
+    /*
+    Important:
+
+    Existing cart / checkout code
+    likely price_per_unit use karta hai.
+
+    Isliye customer-side product object me
+    price_per_unit ko final customer price
+    set kar rahe hain.
+
+    Database change nahi ho raha.
+    */
+
+    price_per_unit:
+      customerPrice
+
+  };
+
+}
+
+
+/* =========================================================
+   LOAD CATEGORIES
+   ========================================================= */
 
 async function loadCategories() {
+
   try {
-    const { data, error } = await supabase
+
+    const {
+      data,
+      error
+    } = await supabase
       .from("product_categories")
       .select("*")
-      .order("name", { ascending: true });
+      .order(
+        "name",
+        {
+          ascending: true
+        }
+      );
 
-    if (error) throw error;
+
+    if (error) {
+
+      throw error;
+
+    }
+
 
     categoryMap.clear();
+
+
     (data || []).forEach(cat => {
-      if (cat.id !== null && cat.id !== undefined) {
-        categoryMap.set(String(cat.id), String(cat.name || cat.title || "Farm Product"));
+
+      if (
+        cat.id !== null &&
+        cat.id !== undefined
+      ) {
+
+        categoryMap.set(
+
+          String(cat.id),
+
+          String(
+            cat.name ||
+            cat.title ||
+            cat.category_name ||
+            cat.slug ||
+            "Farm Product"
+          )
+
+        );
+
       }
+
     });
+
 
     if (categoryFilterSelect) {
-      categoryFilterSelect.innerHTML = `<option value="all">All Categories</option>`;
+
+      categoryFilterSelect.innerHTML = `
+        <option value="all">
+          All Categories
+        </option>
+      `;
+
+
       (data || []).forEach(cat => {
-        const opt = document.createElement("option");
-        opt.value = String(cat.id);
-        opt.textContent = String(cat.name || "Category");
-        categoryFilterSelect.appendChild(opt);
+
+        const option =
+          document.createElement("option");
+
+
+        option.value =
+          String(cat.id);
+
+
+        option.textContent =
+          String(
+            cat.name ||
+            cat.title ||
+            cat.category_name ||
+            "Category"
+          );
+
+
+        categoryFilterSelect.appendChild(
+          option
+        );
+
       });
+
     }
-  } catch (err) {
-    console.warn("Category load warning:", err);
+
+  } catch (error) {
+
+    console.warn(
+      "Category load warning:",
+      error
+    );
+
   }
+
 }
+
+
+/* =========================================================
+   LOAD PRODUCTS
+   ========================================================= */
 
 async function loadProducts() {
-  if (!productsContainer) return;
+
+  if (!productsContainer) {
+
+    return;
+
+  }
+
 
   try {
-    const { data, error } = await supabase
+
+    const {
+      data,
+      error
+    } = await supabase
       .from("products")
       .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+      .eq(
+        "is_active",
+        true
+      )
+      .order(
+        "created_at",
+        {
+          ascending: false
+        }
+      );
 
-    if (error) throw error;
 
-    allProducts = Array.isArray(data) ? data : [];
+    if (error) {
+
+      throw error;
+
+    }
+
+
+    /*
+    Every product is prepared with
+    final customer price before rendering.
+    */
+
+    allProducts =
+      Array.isArray(data)
+
+        ? data.map(
+            prepareCustomerProduct
+          )
+
+        : [];
+
+
     applyFilters();
-  } catch (err) {
-    console.error("Products error:", err);
-    showError(err?.message || "Could not load products.");
+
+  } catch (error) {
+
+    console.error(
+      "Products error:",
+      error
+    );
+
+
+    showError(
+
+      error?.message ||
+
+      "Could not load products."
+
+    );
+
   }
+
 }
+
+
+/* =========================================================
+   SEARCH
+   ========================================================= */
 
 function setupSearch() {
-  if (!productSearch) return;
-  const urlParams = new URLSearchParams(window.location.search);
-  const q = urlParams.get("search");
-  if (q) {
-    productSearch.value = q;
+
+  if (!productSearch) {
+
+    return;
+
   }
-  productSearch.addEventListener("input", applyFilters);
+
+
+  const urlParams =
+    new URLSearchParams(
+      window.location.search
+    );
+
+
+  const searchQuery =
+    urlParams.get("search");
+
+
+  if (searchQuery) {
+
+    productSearch.value =
+      searchQuery;
+
+  }
+
+
+  productSearch.addEventListener(
+    "input",
+    applyFilters
+  );
+
 }
+
+
+/* =========================================================
+   CATEGORY FILTERS
+   ========================================================= */
 
 function setupCategoryFilters() {
+
   if (categoryFilterSelect) {
-    categoryFilterSelect.addEventListener("change", (e) => {
-      currentCategory = e.target.value;
-      applyFilters();
-    });
-  }
 
-  if (categoryFilterButtons && categoryFilterButtons.length > 0) {
-    categoryFilterButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        categoryFilterButtons.forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        currentCategory = btn.dataset.category || "all";
+    categoryFilterSelect.addEventListener(
+      "change",
+
+      event => {
+
+        currentCategory =
+          event.target.value;
+
+
         applyFilters();
-      });
-    });
+
+      }
+    );
+
   }
 
-  // Handle ?category= query param
-  const urlParams = new URLSearchParams(window.location.search);
-  const catParam = urlParams.get("category");
-  if (catParam) {
-    currentCategory = catParam;
+
+  if (
+    categoryFilterButtons &&
+    categoryFilterButtons.length > 0
+  ) {
+
+    categoryFilterButtons.forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+
+          () => {
+
+            categoryFilterButtons.forEach(
+              item => {
+
+                item.classList.remove(
+                  "active"
+                );
+
+              }
+            );
+
+
+            button.classList.add(
+              "active"
+            );
+
+
+            currentCategory =
+              button.dataset.category ||
+              "all";
+
+
+            applyFilters();
+
+          }
+        );
+
+      }
+    );
+
   }
+
+
+  /*
+  Handle category from URL.
+  */
+
+  const urlParams =
+    new URLSearchParams(
+      window.location.search
+    );
+
+
+  const categoryParam =
+    urlParams.get("category");
+
+
+  if (categoryParam) {
+
+    currentCategory =
+      categoryParam;
+
+  }
+
 }
+
+
+/* =========================================================
+   APPLY FILTERS
+   ========================================================= */
 
 function applyFilters() {
-  const query = (productSearch?.value || "").trim().toLowerCase();
-  
-  let filtered = [...allProducts];
+
+  const query =
+    (
+      productSearch?.value ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+
+  let filteredProducts =
+    [...allProducts];
+
+
+  /*
+  SEARCH
+  */
 
   if (query) {
-    filtered = filtered.filter(p => {
-      const name = (p.name || "").toLowerCase();
-      const desc = (p.description || "").toLowerCase();
-      const loc = (p.farm_location || "").toLowerCase();
-      const cat = (categoryMap.get(String(p.category_id)) || "").toLowerCase();
-      return name.includes(query) || desc.includes(query) || loc.includes(query) || cat.includes(query);
-    });
+
+    filteredProducts =
+      filteredProducts.filter(product => {
+
+        const name =
+          String(
+            product.name ||
+            ""
+          )
+          .toLowerCase();
+
+
+        const description =
+          String(
+            product.description ||
+            ""
+          )
+          .toLowerCase();
+
+
+        const location =
+          String(
+            product.farm_location ||
+            ""
+          )
+          .toLowerCase();
+
+
+        const category =
+          String(
+            categoryMap.get(
+              String(
+                product.category_id
+              )
+            ) ||
+            ""
+          )
+          .toLowerCase();
+
+
+        return (
+
+          name.includes(query) ||
+
+          description.includes(query) ||
+
+          location.includes(query) ||
+
+          category.includes(query)
+
+        );
+
+      });
+
   }
 
-  if (currentCategory && currentCategory !== "all") {
-    filtered = filtered.filter(p => {
-      const catName = (categoryMap.get(String(p.category_id)) || "").toLowerCase();
-      return String(p.category_id) === currentCategory || catName.includes(currentCategory.toLowerCase());
-    });
+
+  /*
+  CATEGORY
+  */
+
+  if (
+    currentCategory &&
+    currentCategory !== "all"
+  ) {
+
+    filteredProducts =
+      filteredProducts.filter(product => {
+
+        const categoryName =
+          String(
+
+            categoryMap.get(
+              String(
+                product.category_id
+              )
+            ) ||
+
+            ""
+
+          )
+          .toLowerCase();
+
+
+        return (
+
+          String(
+            product.category_id
+          ) === currentCategory ||
+
+          categoryName.includes(
+            currentCategory.toLowerCase()
+          )
+
+        );
+
+      });
+
   }
 
-  renderProducts(filtered);
+
+  renderProducts(
+    filteredProducts
+  );
+
 }
+
+
+/* =========================================================
+   RENDER PRODUCTS
+   ========================================================= */
 
 function renderProducts(products) {
-  if (!productsContainer) return;
 
-  if (!products || products.length === 0) {
-    productsContainer.innerHTML = "";
-    if (emptyProducts) {
-      emptyProducts.style.display = "block";
-    }
-    if (productCount) productCount.textContent = "0";
+  if (!productsContainer) {
+
     return;
+
   }
+
+
+  if (
+    !products ||
+    products.length === 0
+  ) {
+
+    productsContainer.innerHTML =
+      "";
+
+
+    if (emptyProducts) {
+
+      emptyProducts.style.display =
+        "block";
+
+    }
+
+
+    if (productCount) {
+
+      productCount.textContent =
+        "0";
+
+    }
+
+
+    return;
+
+  }
+
 
   if (emptyProducts) {
-    emptyProducts.style.display = "none";
+
+    emptyProducts.style.display =
+      "none";
+
   }
 
-  productsContainer.style.display = "grid";
-  productsContainer.innerHTML = products.map(createProductCard).join("");
+
+  productsContainer.style.display =
+    "grid";
+
+
+  productsContainer.innerHTML =
+    products
+      .map(
+        createProductCard
+      )
+      .join("");
+
+
   setupProductButtons();
-  if (productCount) productCount.textContent = String(products.length);
+
+
+  if (productCount) {
+
+    productCount.textContent =
+      String(
+        products.length
+      );
+
+  }
+
 }
+
+
+/* =========================================================
+   CREATE PRODUCT CARD
+   ========================================================= */
 
 function createProductCard(product) {
-  const name = escapeHTML(product.name || "Farm Product");
-  const desc = escapeHTML(product.description || "");
-  const price = Number(product.price_per_unit) || 0;
-  const unit = escapeHTML(product.unit || "kg");
-  const stock = Number(product.stock) || 0;
-  const location = escapeHTML(product.farm_location || "Local Farm");
-  const image = String(product.image_url || "").trim();
+
+  const name =
+    escapeHTML(
+      product.name ||
+      "Farm Product"
+    );
+
+
+  const description =
+    escapeHTML(
+      product.description ||
+      ""
+    );
+
+
+  /*
+  IMPORTANT:
+
+  Customer price is used here.
+  Not farmer's original price.
+  */
+
+  const customerPrice =
+    getCustomerPrice(
+      product
+    );
+
+
+  const unit =
+    escapeHTML(
+      product.unit ||
+      "kg"
+    );
+
+
+  const stock =
+    Number(
+      product.stock
+    ) || 0;
+
+
+  const location =
+    escapeHTML(
+      product.farm_location ||
+      "Local Farm"
+    );
+
+
+  const image =
+    String(
+      product.image_url ||
+      ""
+    )
+    .trim();
+
 
   return `
-    <article class="product-card" data-product-id="${escapeAttribute(product.id)}">
+
+    <article
+      class="product-card"
+      data-product-id="${escapeAttribute(product.id)}"
+    >
+
       <div class="product-image-container">
-        ${image ? `
-          <img src="${escapeAttribute(image)}" alt="${name}" class="product-image" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'product-image-placeholder\\'>🌱</div>'" />
-        ` : `
-          <div class="product-image-placeholder">🌱</div>
-        `}
+
+        ${
+          image
+
+            ? `
+
+              <img
+                src="${escapeAttribute(image)}"
+                alt="${name}"
+                class="product-image"
+                loading="lazy"
+                onerror="
+                  this.parentElement.innerHTML =
+                  '<div class=\\'product-image-placeholder\\'>🌱</div>'
+                "
+              >
+
+            `
+
+            : `
+
+              <div
+                class="product-image-placeholder"
+              >
+                🌱
+              </div>
+
+            `
+
+        }
+
       </div>
+
+
       <div class="product-content">
-        <div class="product-location">📍 ${location}</div>
-        <h3 class="product-title">${name}</h3>
-        <p class="product-description">${desc}</p>
+
+
+        <div class="product-location">
+
+          📍 ${location}
+
+        </div>
+
+
+        <h3 class="product-title">
+
+          ${name}
+
+        </h3>
+
+
+        <p class="product-description">
+
+          ${description}
+
+        </p>
+
+
         <div class="product-price-row">
-          <strong class="product-price">${formatRupees(price)}</strong>
-          <span class="product-unit">/ ${unit}</span>
+
+          <strong
+            class="product-price"
+          >
+
+            ${formatRupees(
+              customerPrice
+            )}
+
+          </strong>
+
+
+          <span
+            class="product-unit"
+          >
+
+            / ${unit}
+
+          </span>
+
         </div>
+
+
         <div class="product-actions">
-          <a href="product-details.html?id=${encodeURIComponent(product.id)}" class="secondary-btn">Details</a>
-          <button type="button" class="primary-btn" data-add-cart="${escapeAttribute(product.id)}">🛒 Add</button>
+
+
+          <a
+            href="product-details.html?id=${encodeURIComponent(product.id)}"
+            class="secondary-btn"
+          >
+
+            Details
+
+          </a>
+
+
+          <button
+            type="button"
+            class="primary-btn"
+            data-add-cart="${escapeAttribute(product.id)}"
+          >
+
+            🛒 Add
+
+          </button>
+
+
         </div>
+
+
       </div>
+
+
     </article>
+
   `;
+
 }
+
+
+/* =========================================================
+   ADD TO CART
+   ========================================================= */
 
 function setupProductButtons() {
-  if (!productsContainer) return;
-  productsContainer.querySelectorAll("[data-add-cart]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.addCart;
-      const product = allProducts.find(p => String(p.id) === String(id));
-      if (product) {
-        addToCart(product, 1);
-        btn.textContent = "✓ Added";
-        setTimeout(() => { btn.textContent = "🛒 Add"; }, 1000);
+
+  if (!productsContainer) {
+
+    return;
+
+  }
+
+
+  productsContainer
+    .querySelectorAll(
+      "[data-add-cart]"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+
+          () => {
+
+            const productId =
+              button.dataset.addCart;
+
+
+            const product =
+              allProducts.find(
+
+                item =>
+
+                  String(item.id) ===
+                  String(productId)
+
+              );
+
+
+            if (product) {
+
+              /*
+              Product is already prepared
+              with final customer price.
+
+              price_per_unit =
+              customer final price.
+              */
+
+              addToCart(
+                product,
+                1
+              );
+
+
+              updateCartCount();
+
+
+              button.textContent =
+                "✓ Added";
+
+
+              setTimeout(
+
+                () => {
+
+                  button.textContent =
+                    "🛒 Add";
+
+                },
+
+                1000
+
+              );
+
+            }
+
+          }
+
+        );
+
       }
-    });
-  });
+    );
+
 }
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
 
 function showLoading() {
-  if (productsContainer) {
-    productsContainer.innerHTML = `
-      <div class="loading-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-        <span style="font-size: 40px; display: block;">🌱</span>
-        <p>Loading fresh produce...</p>
-      </div>
-    `;
+
+  if (!productsContainer) {
+
+    return;
+
   }
+
+
+  productsContainer.innerHTML = `
+
+    <div
+      class="loading-state"
+      style="
+        grid-column:1 / -1;
+        text-align:center;
+        padding:40px;
+      "
+    >
+
+      <span
+        style="
+          font-size:40px;
+          display:block;
+        "
+      >
+
+        🌱
+
+      </span>
+
+
+      <p>
+
+        Loading fresh produce...
+
+      </p>
+
+    </div>
+
+  `;
+
 }
 
-function showError(msg) {
-  if (productsContainer) {
-    productsContainer.innerHTML = `
-      <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-        <span style="font-size: 40px; display: block;">⚠️</span>
-        <h3>Could not load products</h3>
-        <p>${escapeHTML(msg)}</p>
-        <button onclick="location.reload()" class="primary-btn" style="margin-top: 12px;">Retry</button>
-      </div>
-    `;
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+function showError(message) {
+
+  if (!productsContainer) {
+
+    return;
+
   }
+
+
+  productsContainer.innerHTML = `
+
+    <div
+      class="empty-state"
+      style="
+        grid-column:1 / -1;
+        text-align:center;
+        padding:40px;
+      "
+    >
+
+      <span
+        style="
+          font-size:40px;
+          display:block;
+        "
+      >
+
+        ⚠️
+
+      </span>
+
+
+      <h3>
+
+        Could not load products
+
+      </h3>
+
+
+      <p>
+
+        ${escapeHTML(message)}
+
+      </p>
+
+
+      <button
+        onclick="location.reload()"
+        class="primary-btn"
+        style="
+          margin-top:12px;
+        "
+      >
+
+        Retry
+
+      </button>
+
+    </div>
+
+  `;
+
 }
