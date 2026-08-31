@@ -102,7 +102,7 @@ function renderOrders() {
   }
 
   if (filter && filter !== "all") {
-    filtered = filtered.filter(o => String(o.status || "pending").toLowerCase() === filter);
+    filtered = filtered.filter(o => String(o.order_status || o.status || "pending").toLowerCase() === filter);
   }
 
   if (filtered.length === 0) {
@@ -119,7 +119,7 @@ function renderOrders() {
 
 function createOrderCard(order) {
   const oid = escapeHTML(order.id);
-  const status = String(order.status || "pending").toLowerCase();
+  const status = String(order.order_status || order.status || "pending").toLowerCase();
   const canCancel = ["pending", "confirmed"].includes(status);
   const total = Number(order.total_amount) || ((Number(order.price_per_unit) || 0) * (Number(order.quantity) || 1));
 
@@ -168,7 +168,7 @@ function setupCancelButtons() {
       const id = btn.dataset.cancelId;
       if (!confirm("Are you sure you want to cancel this order?")) return;
 
-      allOrders = allOrders.map(o => String(o.id) === String(id) ? { ...o, status: "cancelled" } : o);
+      allOrders = allOrders.map(o => String(o.id) === String(id) ? { ...o, status: "cancelled", order_status: "cancelled" } : o);
       localStorage.setItem("khet2ghar_customer_orders", JSON.stringify(allOrders));
       renderOrders();
       showToast("Order cancelled successfully", "success");
