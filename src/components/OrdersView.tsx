@@ -147,7 +147,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ onNavigate }) => {
                     <span className="font-extrabold text-stone-900 text-sm">#{order.id}</span>
                   </div>
                   <div>
-                    {getStatusBadge(order.order_status)}
+                    {getStatusBadge(order.status)}
                   </div>
                 </div>
 
