@@ -32,7 +32,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ onNavigate }) => {
       order.customer_name.toLowerCase().includes(searchOrder.toLowerCase()) ||
       order.city.toLowerCase().includes(searchOrder.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || order.order_status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesStatus = statusFilter === 'all' || order.status.toLowerCase() === statusFilter.toLowerCase();
 
     return matchesSearch && matchesStatus;
   });
@@ -45,7 +45,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({ onNavigate }) => {
         return <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 font-bold text-xs">🟣 Processing</span>;
       case 'shipped':
         return <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs">🚚 In Transit</span>;
-      case 'completed':
+      case 'delivered':
         return <span className="px-2.5 py-1 rounded-full bg-emerald-700 text-white font-bold text-xs">✓ Delivered</span>;
       case 'cancelled':
         return <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-bold text-xs">✕ Cancelled</span>;
