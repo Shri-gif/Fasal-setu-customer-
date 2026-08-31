@@ -62,7 +62,7 @@ export interface Order {
   price_per_unit: number;
   total_amount: number;
   notes?: string | null;
-  order_status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | string;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | string;
   created_at?: string;
 }
 
