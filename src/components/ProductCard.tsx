@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { useCart } from '../context/CartContext';
+import { calculatePlatformPrice, formatPlatformCurrency } from '../platform-fee';
 
 interface ProductCardProps {
   product: Product;
@@ -8,7 +9,8 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onViewDetails }) => {
-  const { addToCart } = useCart();
+  const { addToCart, platformSettings } = useCart();
+  const priceBreakdown = calculatePlatformPrice(product.price_per_unit, platformSettings);
   const [imageError, setImageError] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -90,7 +92,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onViewDetails
         <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
           <div>
             <div className="text-lg font-extrabold text-emerald-700 leading-tight">
-              ₹{product.price_per_unit}
+              {formatPlatformCurrency(priceBreakdown.customerPrice)}
               <span className="text-xs font-normal text-stone-500 ml-1">
                 / {product.unit}
               </span>

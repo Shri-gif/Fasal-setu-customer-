@@ -1,12 +1,13 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
+import { calculatePlatformPrice, formatPlatformCurrency } from '../platform-fee';
 
 interface CartViewProps {
   onNavigate: (view: string, param?: string) => void;
 }
 
 export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
-  const { cart, cartCount, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, cartCount, cartTotal, platformSettings, updateQuantity, removeFromCart, clearCart } = useCart();
 
   if (cart.length === 0) {
     return (
@@ -54,7 +55,9 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
         
         {/* Items List */}
         <div className="lg:col-span-8 space-y-4">
-          {cart.map(item => (
+          {cart.map(item => {
+            const priceBreakdown = calculatePlatformPrice(item.price_per_unit, platformSettings);
+            return (
             <div
               key={item.id}
               className="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -77,7 +80,7 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
                     {item.name}
                   </h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    ₹{item.price_per_unit} / {item.unit}
+                    {formatPlatformCurrency(priceBreakdown.customerPrice)} / {item.unit}
                   </p>
                   {item.farm_location && (
                     <span className="text-[11px] text-emerald-700 font-medium">
@@ -110,7 +113,7 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
                 {/* Subtotal */}
                 <div className="text-right min-w-[80px]">
                   <span className="text-sm sm:text-base font-extrabold text-stone-900 block">
-                    ₹{item.price_per_unit * item.quantity}
+                    {formatPlatformCurrency(priceBreakdown.customerPrice * item.quantity)}
                   </span>
                 </div>
 
@@ -124,7 +127,8 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <div className="pt-2">
             <button
@@ -145,7 +149,11 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between text-stone-600">
               <span>Items Total ({cartCount})</span>
-              <span className="font-semibold text-stone-900">₹{cartTotal}</span>
+              <span className="font-semibold text-stone-900">{formatPlatformCurrency(cartTotal)}</span>
+            </div>
+            <div className="flex justify-between text-stone-600">
+              <span>Platform Fee Included</span>
+              <span className="font-semibold text-stone-900">{formatPlatformCurrency(cart.reduce((sum, item) => sum + calculatePlatformPrice(item.price_per_unit, platformSettings).feeAmount * item.quantity, 0))}</span>
             </div>
             <div className="flex justify-between text-stone-600">
               <span>Direct Farm Packaging</span>
@@ -157,7 +165,7 @@ export const CartView: React.FC<CartViewProps> = ({ onNavigate }) => {
             </div>
             <div className="pt-3 border-t border-stone-200 flex justify-between items-baseline">
               <span className="text-base font-bold text-stone-900">Grand Total</span>
-              <span className="text-2xl font-black text-emerald-800">₹{cartTotal}</span>
+              <span className="text-2xl font-black text-emerald-800">{formatPlatformCurrency(cartTotal)}</span>
             </div>
           </div>
 

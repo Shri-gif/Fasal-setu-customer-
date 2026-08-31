@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { fetchProductById } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
+import { calculatePlatformPrice, formatPlatformCurrency } from '../platform-fee';
 
 interface ProductDetailViewProps {
   productId: string | number;
@@ -9,7 +10,7 @@ interface ProductDetailViewProps {
 }
 
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId, onNavigate }) => {
-  const { addToCart } = useCart();
+  const { addToCart, platformSettings } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -58,6 +59,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId,
   }
 
   const stock = product.stock || 0;
+  const priceBreakdown = calculatePlatformPrice(product.price_per_unit, platformSettings);
   const isAvailable = stock > 0;
 
   const handleAddToCart = () => {
@@ -144,7 +146,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId,
             {/* Price */}
             <div className="flex items-baseline gap-2 pt-1">
               <span className="text-3xl sm:text-4xl font-black text-emerald-800">
-                ₹{product.price_per_unit}
+                {formatPlatformCurrency(priceBreakdown.customerPrice)}
               </span>
               <span className="text-base text-stone-500 font-medium">
                 per {product.unit}
@@ -205,7 +207,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId,
                   </button>
                 </div>
                 <span className="text-xs text-stone-500 font-medium">
-                  Total: ₹{product.price_per_unit * quantity}
+                  Total: {formatPlatformCurrency(priceBreakdown.customerPrice * quantity)}
                 </span>
               </div>
 

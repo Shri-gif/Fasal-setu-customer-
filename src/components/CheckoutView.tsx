@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
+import { calculatePlatformPrice, formatPlatformCurrency } from '../platform-fee';
 
 interface CheckoutViewProps {
   onNavigate: (view: string, param?: string) => void;
 }
 
 export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
-  const { cart, cartTotal, cartCount, profile, checkoutOrder } = useCart();
+  const { cart, cartTotal, cartCount, platformSettings, profile, checkoutOrder } = useCart();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -253,23 +254,30 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
 
             {/* Cart Preview List */}
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {cart.map(item => (
+              {cart.map(item => {
+                const priceBreakdown = calculatePlatformPrice(item.price_per_unit, platformSettings);
+                return (
                 <div key={item.id} className="flex items-center justify-between text-xs py-2 border-b border-stone-100">
                   <div className="flex-1 pr-3">
                     <span className="font-bold text-stone-900 block truncate">{item.name}</span>
-                    <span className="text-stone-500">{item.quantity} × ₹{item.price_per_unit} / {item.unit}</span>
+                    <span className="text-stone-500">{item.quantity} × {formatPlatformCurrency(priceBreakdown.customerPrice)} / {item.unit}</span>
                   </div>
                   <span className="font-extrabold text-stone-900">
-                    ₹{item.price_per_unit * item.quantity}
+                    {formatPlatformCurrency(priceBreakdown.customerPrice * item.quantity)}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="space-y-2.5 text-sm pt-2">
               <div className="flex justify-between text-stone-600">
                 <span>Subtotal</span>
-                <span className="font-bold text-stone-900">₹{cartTotal}</span>
+                <span className="font-bold text-stone-900">{formatPlatformCurrency(cartTotal)}</span>
+              </div>
+              <div className="flex justify-between text-stone-600">
+                <span>Platform Fee Included</span>
+                <span className="font-bold text-stone-900">{formatPlatformCurrency(cart.reduce((sum, item) => sum + calculatePlatformPrice(item.price_per_unit, platformSettings).feeAmount * item.quantity, 0))}</span>
               </div>
               <div className="flex justify-between text-stone-600">
                 <span>Doorstep Delivery</span>
@@ -277,7 +285,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
               </div>
               <div className="pt-3 border-t border-stone-200 flex justify-between items-baseline">
                 <span className="text-base font-bold text-stone-900">Total Payable</span>
-                <span className="text-2xl font-black text-emerald-800">₹{cartTotal}</span>
+                <span className="text-2xl font-black text-emerald-800">{formatPlatformCurrency(cartTotal)}</span>
               </div>
             </div>
 
@@ -295,7 +303,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
                   : 'bg-emerald-700 hover:bg-emerald-800 text-white hover:shadow-lg'
               }`}
             >
-              {isSubmitting ? 'Placing Order with Farmers...' : `Place Order (₹${cartTotal}) →`}
+              {isSubmitting ? 'Placing Order with Farmers...' : `Place Order ({formatPlatformCurrency(cartTotal)}) →`}
             </button>
 
             <button
