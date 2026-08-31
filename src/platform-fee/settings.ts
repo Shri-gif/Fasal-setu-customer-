@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import { PlatformFeeSettings } from './types';
 import { normalizeFeeType } from './calculations';
 
@@ -21,7 +21,8 @@ export const loadPlatformFeeSettings = async (): Promise<PlatformFeeSettings> =>
       platform_fee: Math.max(0, Number(data.platform_fee) || 0),
       platform_fee_type: normalizeFeeType(data.platform_fee_type),
     };
-  } catch {
+  } catch (error) {
+    console.error('Failed to load platform fee settings:', error);
     return DEFAULT_PLATFORM_FEE_SETTINGS;
   }
 };
