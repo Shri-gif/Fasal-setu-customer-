@@ -83,7 +83,7 @@ const normalizeOrder = (row: any): Order => ({
   notes: row.notes ?? null,
   // Farmer updates the canonical order_status field. Prefer it
   // and fall back to the legacy status field for older orders.
-  status: row.order_status || row.status || 'pending',
+  status: row.order_status,
   created_at: row.created_at
 });
 
