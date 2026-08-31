@@ -7,12 +7,6 @@ import {
   PlacedOrderSummary
 } from '../types';
 import { supabase } from '../lib/supabase';
-import {
-  buildPlatformFeeOrderSnapshot,
-  calculatePlatformPrice,
-  loadPlatformFeeSettings,
-  PlatformFeeSettings,
-} from '../platform-fee';
 
 const CART_KEY = 'khet2ghar_customer_cart';
 const PROFILE_KEY = 'fasal_setu_customer_profile';
@@ -29,7 +23,6 @@ interface CartContextType {
   cart: CartItem[];
   cartCount: number;
   cartTotal: number;
-  platformSettings: PlatformFeeSettings;
 
   addToCart: (product: Product, quantity?: number) => boolean;
   updateQuantity: (productId: string | number, quantity: number) => void;
@@ -87,13 +80,10 @@ const normalizeOrder = (row: any): Order => ({
   quantity: Number(row.quantity) || 0,
   price_per_unit: Number(row.price_per_unit) || 0,
   total_amount: Number(row.total_amount) || 0,
-  base_price_per_unit: row.base_price_per_unit != null ? Number(row.base_price_per_unit) || 0 : undefined,
-  platform_fee_amount: row.platform_fee_amount != null ? Number(row.platform_fee_amount) || 0 : undefined,
-  platform_fee_type: row.platform_fee_type ?? null,
-  platform_fee_value: row.platform_fee_value != null ? Number(row.platform_fee_value) || 0 : undefined,
-  customer_price_per_unit: row.customer_price_per_unit != null ? Number(row.customer_price_per_unit) || 0 : undefined,
   notes: row.notes ?? null,
-  status: row.status || 'pending',
+  // Farmer updates the canonical order_status field. Prefer it
+  // and fall back to the legacy status field for older orders.
+  status: row.order_status || row.status || 'pending',
   created_at: row.created_at
 });
 
@@ -159,23 +149,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
-  const [platformSettings, setPlatformSettings] = useState<PlatformFeeSettings>({
-    platform_fee: 0,
-    platform_fee_type: 'percentage',
-  });
-
-  useEffect(() => {
-    let mounted = true;
-
-    loadPlatformFeeSettings().then(settings => {
-      if (mounted) setPlatformSettings(settings);
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   /* =======================================================
      TOAST
   ======================================================= */
@@ -222,16 +195,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const cartTotal = cart.reduce(
-    (sum, item) => {
-      const breakdown = calculatePlatformPrice(
-        Number(item.price_per_unit) || 0,
-        platformSettings
-      );
-
-      return sum +
-        breakdown.customerPrice *
-        Number(item.quantity || 1);
-    },
+    (sum, item) =>
+      sum +
+      Number(item.price_per_unit || 0) *
+        Number(item.quantity || 1),
     0
   );
 
@@ -698,7 +665,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       } = await supabase
         .from('orders')
         .update({
-          status: 'cancelled'
+          // Keep both status columns synchronized.
+          status: 'cancelled',
+          order_status: 'cancelled'
         })
         .eq(
           'id',
@@ -856,18 +825,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           Number(item.quantity) || 1,
         price_per_unit:
           Number(item.price_per_unit) || 0,
-        total_amount: (() => {
-          const snapshot = buildPlatformFeeOrderSnapshot(
-            Number(item.price_per_unit) || 0,
-            platformSettings
-          );
-          return snapshot.customer_price_per_unit *
-            Number(item.quantity || 1);
-        })(),
-        ...buildPlatformFeeOrderSnapshot(
-          Number(item.price_per_unit) || 0,
-          platformSettings
-        ),
+        total_amount:
+          Number(item.price_per_unit || 0) *
+          Number(item.quantity || 1),
         notes:
           formData.notes?.trim() || null,
         status: 'pending'
@@ -1037,7 +997,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         cart,
         cartCount,
         cartTotal,
-        platformSettings,
 
         addToCart,
         updateQuantity,
