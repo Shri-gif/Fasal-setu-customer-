@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Product, ProductCategory } from '../types';
 
 /**
- * FASAL SETU CUSTOMER
+ * FASAL VISTAAR CUSTOMER
  * Supabase connection
  *
  * Supabase is the source of truth for live customer data.
@@ -172,7 +172,7 @@ export async function fetchCategories(): Promise<ProductCategory[]> {
 
   if (error) {
     console.error(
-      'Fasal Setu: failed to fetch product categories:',
+      'FASAL VISTAAR: failed to fetch product categories:',
       error
     );
 
@@ -221,7 +221,7 @@ export async function fetchProducts(): Promise<Product[]> {
 
   if (error) {
     console.error(
-      'Fasal Setu: failed to fetch products:',
+      'FASAL VISTAAR: failed to fetch products:',
       error
     );
 
@@ -287,7 +287,7 @@ export async function fetchProducts(): Promise<Product[]> {
        * information cannot be read.
        */
       console.warn(
-        'Fasal Setu: farmer details could not be fetched. Products will still be shown:',
+        'FASAL VISTAAR: farmer details could not be fetched. Products will still be shown:',
         farmerError
       );
     } else if (farmers) {
@@ -331,7 +331,7 @@ export async function fetchProductById(
 
   if (error) {
     console.error(
-      `Fasal Setu: failed to fetch product ${id}:`,
+      `FASAL VISTAAR: failed to fetch product ${id}:`,
       error
     );
 
@@ -373,7 +373,7 @@ export async function fetchProductById(
 
     if (farmerError) {
       console.warn(
-        `Fasal Setu: farmer details could not be fetched for product ${id}:`,
+        `FASAL VISTAAR: farmer details could not be fetched for product ${id}:`,
         farmerError
       );
     } else if (farmer) {
@@ -420,7 +420,7 @@ export async function placeOrderInDb(
 
   if (error) {
     console.error(
-      'Fasal Setu: order insert failed:',
+      'FASAL VISTAAR: order insert failed:',
       error
     );
 
