@@ -1,5 +1,5 @@
 /* =========================================================
-   FASAL SETU / KHET2GHAR - supabase.js (Clean & Resilient)
+   FASAL VISTAAR / KHET2GHAR - supabase.js (Clean & Resilient)
    ========================================================= */
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";

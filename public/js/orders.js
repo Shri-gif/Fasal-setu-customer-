@@ -1,5 +1,5 @@
 /* =========================================================
-   FASAL SETU / KHET2GHAR - js/orders.js (Fixed & Resilient)
+   FASAL VISTAAR / KHET2GHAR - js/orders.js (Fixed & Resilient)
    ========================================================= */
 
 import { supabase } from "./supabase.js";

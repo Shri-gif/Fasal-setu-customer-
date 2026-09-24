@@ -1,5 +1,5 @@
 /* =========================================================
-   FASAL SETU / KHET2GHAR - app.js (Core utilities & state)
+   FASAL VISTAAR / KHET2GHAR - app.js (Core utilities & state)
    ========================================================= */
 
 export const CART_KEY = "khet2ghar_customer_cart";
