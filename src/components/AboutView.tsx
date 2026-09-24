@@ -7,13 +7,13 @@ export const AboutView: React.FC<{ onNavigate: (view: string) => void }> = ({ on
       {/* Hero */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <span className="text-xs font-bold text-emerald-700 tracking-wider uppercase">
-          🌱 ABOUT FASAL SETU
+          🌱 ABOUT FASAL VISTAAR
         </span>
         <h1 className="text-4xl sm:text-5xl font-black text-stone-900 tracking-tight">
           Connecting India's Farms Directly to Your Kitchen
         </h1>
         <p className="text-stone-600 text-base sm:text-lg leading-relaxed">
-          Fasal Setu is built with one clear mission: eliminating unfair middleman commissions and bringing unadulterated, wholesome food from local farmers straight to conscious consumers.
+          FASAL VISTAAR is built with one clear mission: eliminating unfair middleman commissions and bringing unadulterated, wholesome food from local farmers straight to conscious consumers.
         </p>
       </div>
 
@@ -25,7 +25,7 @@ export const AboutView: React.FC<{ onNavigate: (view: string) => void }> = ({ on
           </div>
           <h3 className="text-xl font-bold text-stone-900">Direct Farmer Remuneration</h3>
           <p className="text-sm text-stone-600 leading-relaxed">
-            Every rupee spent on Fasal Setu goes directly to the producer, enabling farmers to invest in sustainable soil health and natural bio-fertilizers.
+            Every rupee spent on FASAL VISTAAR goes directly to the producer, enabling farmers to invest in sustainable soil health and natural bio-fertilizers.
           </p>
         </div>
 
@@ -94,7 +94,7 @@ export const ContactView: React.FC<{ onNavigate: (view: string) => void }> = () 
 
   const handleWhatsApp = (e: React.FormEvent) => {
     e.preventDefault();
-    const text = `Hello Fasal Setu,
+    const text = `Hello FASAL VISTAAR,
 Name: ${formData.name}
 Mobile: ${formData.mobile}
 Subject: ${formData.subject}
@@ -114,7 +114,7 @@ Message: ${formData.message}`;
           💬 WE ARE HERE TO HELP
         </span>
         <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
-          Get in Touch with Fasal Setu
+          Get in Touch with FASAL VISTAAR
         </h1>
         <p className="text-stone-600 text-sm sm:text-base">
           Questions about farmer deliveries, bulk farm orders, or partnership? Connect with our dedicated support team.

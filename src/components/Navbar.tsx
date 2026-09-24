@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, onNavigate }) => {
             </div>
             <div>
               <span className="text-xl font-extrabold text-emerald-800 tracking-tight block">
-                Fasal Setu
+                FASAL VISTAAR
               </span>
               <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-widest block -mt-1">
                 Farm To Home

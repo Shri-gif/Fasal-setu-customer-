@@ -227,7 +227,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate, onViewProduct })
               Transparent & Simple
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
-              How Fasal Setu Delivers Freshness
+              How FASAL VISTAAR Delivers Freshness
             </h2>
           </div>
 

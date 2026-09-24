@@ -16,7 +16,9 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
     address: '',
     city: '',
     pincode: '',
-    notes: ''
+    notes: '',
+    paymentMethod: 'cash_on_delivery' as 'cash_on_delivery' | 'upi',
+    paymentReference: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +63,15 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
     setErrorMsg('');
   };
 
+  const handlePaymentChange = (method: 'cash_on_delivery' | 'upi') => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethod: method,
+      paymentReference: method === 'cash_on_delivery' ? '' : prev.paymentReference
+    }));
+    setErrorMsg('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -83,6 +94,11 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
     const cleanPincode = formData.pincode.replace(/\D/g, '');
     if (cleanPincode.length !== 6) {
       setErrorMsg('Please enter a valid 6-digit PIN code');
+      return;
+    }
+
+    if (!formData.paymentMethod) {
+      setErrorMsg('Please select a payment method');
       return;
     }
 
@@ -289,9 +305,65 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({ onNavigate }) => {
               </div>
             </div>
 
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-stone-900">3. Payment Method</h3>
+
+              <button
+                type="button"
+                onClick={() => handlePaymentChange('cash_on_delivery')}
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
+                  formData.paymentMethod === 'cash_on_delivery'
+                    ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600'
+                    : 'border-stone-200 bg-white hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-sm text-stone-900">💵 Cash on Delivery</p>
+                    <p className="text-xs text-stone-500 mt-1">Pay cash when your order is delivered.</p>
+                  </div>
+                  <span className="text-lg">{formData.paymentMethod === 'cash_on_delivery' ? '✓' : '○'}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePaymentChange('upi')}
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
+                  formData.paymentMethod === 'upi'
+                    ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600'
+                    : 'border-stone-200 bg-white hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-sm text-stone-900">📱 UPI</p>
+                    <p className="text-xs text-stone-500 mt-1">Choose UPI for this order. Payment remains pending until verified.</p>
+                  </div>
+                  <span className="text-lg">{formData.paymentMethod === 'upi' ? '✓' : '○'}</span>
+                </div>
+              </button>
+
+              {formData.paymentMethod === 'upi' && (
+                <input
+                  type="text"
+                  name="paymentReference"
+                  value={formData.paymentReference}
+                  onChange={handleChange}
+                  placeholder="Optional UPI transaction/reference ID"
+                  className="w-full px-4 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm focus:outline-hidden focus:border-emerald-600 focus:bg-white transition-all"
+                />
+              )}
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                <p className="font-semibold">Cards / Netbanking</p>
+                <p className="mt-1">Online gateway is not connected yet, so it is intentionally not shown as a working payment option. Do not collect card details in this customer app.</p>
+              </div>
+            </div>
+
             <div className="p-3 bg-stone-50 rounded-xl text-xs text-stone-600 space-y-1">
-              <p className="font-semibold text-stone-800">💵 Payment on Delivery / UPI Available</p>
-              <p>Pay cash or scan QR at your doorstep once you verify the freshness of the produce.</p>
+              <p className="font-semibold text-stone-800">🔐 Payment status is recorded with the order</p>
+              <p>Cash orders stay pending until collection. UPI orders stay pending until the payment is verified.</p>
             </div>
 
             <button

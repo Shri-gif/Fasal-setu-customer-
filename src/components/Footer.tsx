@@ -18,7 +18,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 🌱
               </span>
               <span className="text-xl font-bold text-white tracking-tight">
-                Fasal Setu
+                FASAL VISTAAR
               </span>
             </div>
             <p className="text-sm text-stone-400 leading-relaxed max-w-sm">
@@ -114,7 +114,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-          <p>© {new Date().getFullYear()} Fasal Setu Marketplace. Empowering Indian Agriculture.</p>
+          <p>© {new Date().getFullYear()} FASAL VISTAAR Marketplace. Empowering Indian Agriculture.</p>
           <p className="text-emerald-500/80 font-medium">100% Direct Farmer Compensation Guaranteed</p>
         </div>
       </div>
