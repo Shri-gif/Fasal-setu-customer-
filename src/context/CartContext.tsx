@@ -46,6 +46,8 @@ interface CartContextType {
     city: string;
     pincode: string;
     notes?: string;
+    paymentMethod: 'cash_on_delivery' | 'upi';
+    paymentReference?: string;
   }) => Promise<{ success: boolean; error?: string }>;
 
   toasts: ToastInfo[];
@@ -81,6 +83,9 @@ const normalizeOrder = (row: any): Order => ({
   price_per_unit: Number(row.price_per_unit) || 0,
   total_amount: Number(row.total_amount) || 0,
   notes: row.notes ?? null,
+  payment_method: row.payment_method || 'cash_on_delivery',
+  payment_status: row.payment_status || 'pending',
+  payment_reference: row.payment_reference ?? null,
   // Farmer updates the canonical order_status field. Prefer it
   // and fall back to the legacy status field for older orders.
   status: row.order_status,
@@ -745,6 +750,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       city: string;
       pincode: string;
       notes?: string;
+      paymentMethod: 'cash_on_delivery' | 'upi';
+      paymentReference?: string;
     }
   ): Promise<{
     success: boolean;
@@ -830,6 +837,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
           Number(item.quantity || 1),
         notes:
           formData.notes?.trim() || null,
+        payment_method:
+          formData.paymentMethod,
+        payment_status:
+          formData.paymentMethod === 'cash_on_delivery'
+            ? 'pending'
+            : 'pending',
+        payment_reference:
+          formData.paymentReference?.trim() || null,
         status: 'pending'
       }));
 
@@ -839,13 +854,44 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
        We use .select() so we get the actual DB order IDs.
     ------------------------------------------------------- */
 
-    const {
-      data: insertedOrders,
-      error: orderError
-    } = await supabase
+    let insertedOrders: any[] | null = null;
+    let orderError: any = null;
+
+    const primaryInsert = await supabase
       .from('orders')
       .insert(newOrderRows)
       .select('*');
+
+    insertedOrders = primaryInsert.data;
+    orderError = primaryInsert.error;
+
+    /*
+     * Compatibility fallback:
+     * If an older Supabase orders table has not yet received the
+     * payment columns, place the order using the original schema.
+     * The selected payment method still remains in the local order
+     * cache, while the migration can be applied later.
+     */
+    if (orderError) {
+      const legacyRows = newOrderRows.map(({ payment_method, payment_status, payment_reference, ...row }) => row);
+      const legacyInsert = await supabase
+        .from('orders')
+        .insert(legacyRows)
+        .select('*');
+
+      if (!legacyInsert.error) {
+        insertedOrders = (legacyInsert.data || []).map((row: any) => ({
+          ...row,
+          payment_method: newOrderRows[0]?.payment_method || 'cash_on_delivery',
+          payment_status: 'pending',
+          payment_reference: newOrderRows[0]?.payment_reference || null
+        }));
+        orderError = null;
+        console.warn(
+          'Order placed using legacy orders schema. Apply the payment migration to persist payment fields in Supabase.'
+        );
+      }
+    }
 
     if (orderError) {
       console.error(
