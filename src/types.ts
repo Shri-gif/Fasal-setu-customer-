@@ -62,6 +62,9 @@ export interface Order {
   price_per_unit: number;
   total_amount: number;
   notes?: string | null;
+  payment_method?: 'cash_on_delivery' | 'upi' | 'online' | string;
+  payment_status?: 'pending' | 'paid' | 'failed' | 'refunded' | string;
+  payment_reference?: string | null;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | string;
   created_at?: string;
 }
